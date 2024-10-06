@@ -1,0 +1,26 @@
+name: Create tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The tag version it is going to be created"
+        required: true
+        type: "string"
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.ACTIONS_PERSONAL_ACCESS_TOKEN }}
+      - run: git config --global user.name "GitHub Actions bot"
+      - run: git config --global user.email "<>"
+      - run: git fetch --prune --unshallow --tags
+      - run: git commit -m "${{ inputs.version }}" --allow-empty
+      - run: git tag -a -m "${{ inputs.version }}" ${{ inputs.version }}
+      - run: git push --follow-tags
