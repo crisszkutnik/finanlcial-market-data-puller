@@ -16,8 +16,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.ACTIONS_PERSONAL_ACCESS_TOKEN }}
       - run: git config --global user.name "GitHub Actions bot"
       - run: git config --global user.email "<>"
       - run: git fetch --prune --unshallow --tags
