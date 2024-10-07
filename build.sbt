@@ -3,8 +3,8 @@ import scala.sys.process.*
 
 val Http4sVersion = "0.23.28"
 val CirceVersion = "0.14.9"
-val MunitVersion = "1.0.0"
-val LogbackVersion = "1.5.6"
+val MunitVersion = "1.0.2"
+val LogbackVersion = "1.5.8"
 val MunitCatsEffectVersion = "2.0.0"
 
 lazy val buildDockerImage = taskKey[Unit]("Build Docker image for project")
@@ -22,7 +22,7 @@ lazy val root = (project in file("."))
     organization := "com.crisszkutnik",
     name := "financial-market-data-puller",
     version := "0.0.1-SNAPSHOT",
-    scalaVersion := "3.3.3",
+    scalaVersion := "3.3.4",
     libraryDependencies ++= Seq(
       "org.http4s"      %% "http4s-ember-server" % Http4sVersion,
       "org.http4s"      %% "http4s-ember-client" % Http4sVersion,
@@ -32,19 +32,19 @@ lazy val root = (project in file("."))
       "org.typelevel"   %% "munit-cats-effect"   % MunitCatsEffectVersion % Test,
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion         % Runtime,
     ),
-    libraryDependencies += "com.softwaremill.sttp.client4" %% "core" % "4.0.0-M13",
+    libraryDependencies += "com.softwaremill.sttp.client4" %% "core" % "4.0.0-M18",
     libraryDependencies += "org.jsoup" % "jsoup" % "1.18.1",
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
     libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % "2.24.1",
-    libraryDependencies += "com.lihaoyi" %% "upickle" % "3.3.0",
+    libraryDependencies += "com.lihaoyi" %% "upickle" % "4.0.2",
     libraryDependencies ++= Seq(
       "org.apache.poi" % "poi" % "5.3.0",
       "org.apache.poi" % "poi-ooxml" % "5.3.0",
       "org.apache.poi" % "poi-ooxml-lite" % "5.3.0"
     ),
     libraryDependencies ++= Seq(
-      "io.circe" %% "circe-generic" % "0.14.8",
-      "io.circe" %% "circe-literal" % "0.14.8"
+      "io.circe" %% "circe-generic" % "0.14.10",
+      "io.circe" %% "circe-literal" % "0.14.10"
     ),
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", x, xs @ _*) if x.toLowerCase == "services" => MergeStrategy.filterDistinctLines
