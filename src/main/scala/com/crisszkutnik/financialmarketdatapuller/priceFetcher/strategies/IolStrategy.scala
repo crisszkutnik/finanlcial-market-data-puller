@@ -1,16 +1,16 @@
 package com.crisszkutnik.financialmarketdatapuller.priceFetcher.strategies
 
+import com.crisszkutnik.financialmarketdatapuller.priceFetcher.exceptions.TickerNotFoundException
 import com.crisszkutnik.financialmarketdatapuller.priceFetcher.{AssetType, Currency, Market, Source, TickerPriceInfo}
-import com.typesafe.scalalogging.Logger
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import sttp.client4.quick.*
 import sttp.client4.Response
 import sttp.model.Uri
 
-class IolStrategy(
- private val logger: Logger = Logger[IolStrategy]
-) extends PriceFetcher:
+import scala.util.Try
+
+class IolStrategy extends PriceFetcher:
   val source: Source = Source.IOL
 
   def canHandle(market: Market, ticker: String, assetType: AssetType): Boolean =
@@ -18,29 +18,33 @@ class IolStrategy(
       case AssetType.STOCK | AssetType.BOND => true
       case _ => false
 
-  def getTickerPriceInfo(market: Market, ticker: String, assetType: AssetType): Option[TickerPriceInfo] =
-    try {
-      val marketVal = transformMarket(market)
-      val url: Uri = uri"https://iol.invertironline.com/titulo/cotizacion/$marketVal/$ticker"
+  def getTickerPriceInfo(market: Market, ticker: String, assetType: AssetType): Try[TickerPriceInfo] =
+    Try {
+      val doc = getDocument(transformMarket(market), ticker)
 
-      val response: Response[String] = quickRequest.get(url).send()
-      val doc = Jsoup.parse(response.body)
 
-      val unitsForTicker = getUnitsForGivenPrice(assetType)
-
-      Some(
+      if foundTicker(doc) then
         TickerPriceInfo(
           getPrice(doc),
-          unitsForTicker,
+          getUnitsForGivenPrice(assetType),
           getCurrency(doc)
         )
-      )
-    } catch {
-      case e: Throwable =>
-        logger.error(s"FATAL ERROR. Failed to fetch price for combination (market, ticker, assetType) = ($market, $ticker, $assetType)")
-        logger.error(e.toString)
-        None
+      else
+        throw TickerNotFoundException(source, market, ticker)
     }
+
+  private def foundTicker(doc: Document): Boolean =
+    Option(doc.selectFirst("#error")).isEmpty
+
+
+  private def getDocument(market: String, ticker: String): Document =
+    try {
+      val url: Uri = uri"https://iol.invertironline.com/titulo/cotizacion/$market/$ticker"
+      val response: Response[String] = quickRequest.get(url).send()
+      Jsoup.parse(response.body)
+    } catch
+      case e: Exception =>
+        throw TickerNotFoundException(source, market, ticker)
 
   private def getPrice(doc: Document): Double =
     doc

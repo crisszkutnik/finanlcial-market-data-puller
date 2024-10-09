@@ -64,11 +64,14 @@ class FciStrategy(
 
     file
 
-  private def createDirectory(): Try[Unit] =
-    Try {
+  private def createDirectory(): Unit =
+    try {
       val p = Path.of(BASE_PATH)
       val _ = Files.createDirectory(p)
-    }
+      logger.error("Directory created")
+    } catch
+      case e: FileAlreadyExistsException =>
+        logger.error("Directory already exists. Skipping.")
 
   private def retrieveFile(): Try[File] =
     Try {
@@ -82,59 +85,39 @@ class FciStrategy(
         downloadFile(filePath)
     }
 
-  private def readFromSpreadsheet(fciName: String, file: File): Option[TickerPriceInfo] =
-    val data = Try {
-      val wb =  WorkbookFactory.create(file)
-      val sheet = wb.getSheetAt(0)
-      val it = sheet.iterator().asScala
+  private def readFromSpreadsheet(fciName: String, file: File): TickerPriceInfo =
+    val wb =  WorkbookFactory.create(file)
+    val sheet = wb.getSheetAt(0)
+    val it = sheet.iterator().asScala
 
-      val row = it.find(r => {
-        val cell = r.getCell(0)
-        cell.getStringCellValue.strip() == fciName
-      })
+    val row = it.find(r => {
+      val cell = r.getCell(0)
+      cell.getStringCellValue.strip() == fciName
+    })
 
-      val price = row.get.getCell(5).getNumericCellValue
-      val currency = row.get.getCell(1).getStringCellValue
+    val price = row.get.getCell(5).getNumericCellValue
+    val currency = row.get.getCell(1).getStringCellValue
 
-      val enumValue = Currency.valueOf(currency)
+    TickerPriceInfo(
+      price,
+      1000,
+      Currency.valueOf(currency)
+    )
 
-      (price, enumValue)
-    }
-
-    data match
-      case Success((v, currency)) => Some(
-        TickerPriceInfo(
-          v,
-          1000,
-          currency
-        )
-      )
-      case Failure(e: Throwable) =>
-        logger.error("Failed to read from spreadsheet")
-        logger.error(e.toString)
-        None
-
-  private def readValue(fciName: String): Option[TickerPriceInfo] =
+  private def readValue(fciName: String): Try[TickerPriceInfo] =
     retrieveFile() match
       case Success(f) =>
-        readFromSpreadsheet(fciName, f)
+        Success(readFromSpreadsheet(fciName, f))
       case Failure(e: Throwable) =>
         logger.error("Failed to retrieve file")
         logger.error(e.toString)
-        None
+        Failure(e)
 
-  def getTickerPriceInfo(market: Market, ticker: String, assetType: AssetType): Option[TickerPriceInfo] =
-    createDirectory() match
-      case Success(_) =>
-        logger.info("Directory created")
-        readValue(ticker)
-      case Failure(e: FileAlreadyExistsException) =>
-        logger.info("Directory already exists. Skipping")
-        readValue(ticker)
-      case Failure(e: Throwable) =>
-        logger.info("Failed to create directory")
-        logger.info(e.toString)
-        None
+  def getTickerPriceInfo(market: Market, ticker: String, assetType: AssetType): Try[TickerPriceInfo] =
+    Try {
+      createDirectory()
+      readValue(ticker).get
+    }
 
 object FciStrategy:
   private val BASE_PATH = "./fci_files"

@@ -1,7 +1,16 @@
 package com.crisszkutnik.financialmarketdatapuller.priceFetcher
 
+import com.crisszkutnik.financialmarketdatapuller.priceFetcher.exceptions.TickerNotFoundException
 import com.crisszkutnik.financialmarketdatapuller.priceFetcher.strategies.{FciStrategy, IolStrategy, PriceFetcher, YahooFinanceStrategy}
 import com.typesafe.scalalogging.Logger
+
+import scala.util.{Failure, Success, Try}
+
+case class FetcherEvaluationStatus(
+  tickerInfo: Option[TickerPriceInfo] = None,
+  source: Option[Source] = None,
+  isNotFound: Boolean = false
+)
 
 class AssetPriceService(
   private val fetchers: List[PriceFetcher] = List(
@@ -11,34 +20,37 @@ class AssetPriceService(
   ),
   private val logger: Logger = Logger[AssetPriceService]
 ):
-  def getValue(market: Market, ticker: String, assetType: AssetType): Option[PriceResponse] =
+  def getValue(market: Market, ticker: String, assetType: AssetType): Try[PriceResponse] =
     val validFetchers = fetchers.filter(_.canHandle(market, ticker, assetType))
-    val foldFn = (accumulator: Option[(TickerPriceInfo, Source)], fetcher: PriceFetcher) => {
-      accumulator match
-        case Some(i) => Some(i)
-        case None => evalFetcher(fetcher, market, ticker, assetType)
+
+    val foldFn = (acc: FetcherEvaluationStatus, fetcher: PriceFetcher) => {
+      acc match
+        case FetcherEvaluationStatus(Some(_), Some(_), _) => acc
+        case _ =>
+          fetcher.getTickerPriceInfo(market, ticker, assetType) match
+            case Success(info) => FetcherEvaluationStatus(Some(info), Some(fetcher.source), acc.isNotFound)
+            case Failure(e: TickerNotFoundException) => FetcherEvaluationStatus(None, None, true)
+            case Failure(e: Throwable) =>
+              logger.error(e.toString)
+              FetcherEvaluationStatus(None, None, false)
     }
 
-    val info = validFetchers.foldLeft(Option.empty[(TickerPriceInfo, Source)])(foldFn)
+    val fetcherStatus = validFetchers.foldLeft(FetcherEvaluationStatus())(foldFn)
 
-    info match
-      case Some((tickerInfo, source)) =>
-        Some(
+    fetcherStatus match
+      case FetcherEvaluationStatus(Some(info), Some(source), _) =>
+        Success(
           PriceResponse(
-            tickerInfo.value,
+            info.value,
             ticker,
             market,
             assetType,
-            tickerInfo.unitsForTickerPrice,
-            tickerInfo.currency,
+            info.unitsForTickerPrice,
+            info.currency,
             source
           )
         )
-      case None =>
-        logger.error(s"Failed to find handler for combination (market, ticker, assetType) = ($market, $ticker, $assetType)")
-        None
-
-  private def evalFetcher(fetcher: PriceFetcher, market: Market, ticker: String, assetType: AssetType) =
-    fetcher.getTickerPriceInfo(market, ticker, assetType) match
-      case Some(v) => Some(v, fetcher.source)
-      case None => None
+      case FetcherEvaluationStatus(_, _, true) =>
+        Failure(TickerNotFoundException(market, ticker))
+      case FetcherEvaluationStatus(_, _, false) =>
+        Failure(Exception(s"Critical error when trying to retrieve ticker $market:$ticker"))
