@@ -9,8 +9,9 @@ import com.crisszkutnik.financialmarketdatapuller.priceFetcher.{AssetType, Marke
 import org.http4s.HttpRoutes
 import org.http4s.dsl.Http4sDsl
 import cats.effect.*
-import cats.syntax.flatMap._
-import cats.syntax.functor._
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
+import io.prometheus.metrics.core.metrics.Counter
 import org.http4s.circe.*
 
 import scala.util.{Failure, Success, Try}
@@ -18,6 +19,17 @@ import scala.util.{Failure, Success, Try}
 case class BasicTickerBody(market: String, ticker: String, assetType: String)
 
 object TickerRoutes:
+  lazy val counter = Counter
+    .builder()
+    .name("basic_ticker_requests")
+    .help("Data of requests made to basic ticker endpoints")
+    .labelNames("status")
+    .register()
+
+  private lazy val OK = "ok"
+  private lazy val BAD_REQUEST = "bad_request"
+  private lazy val INTERNAL_ERROR = "internal_server_error"
+
   def tickerRoutes[F[_]: Concurrent](controller: TickerController[F]): HttpRoutes[F] =
     val dsl = new Http4sDsl[F]{}
     import dsl.*
@@ -44,10 +56,18 @@ object TickerRoutes:
     (parsedMarket, parsedAssetType) match
       case (Success(m), Success(at)) =>
         controller.getBasicTickerValue(m, ticker, at) match
-          case Success(res) => Ok(res.asJson)
-          case Failure(e: TickerNotFoundException) => BadRequest()
-          case Failure(e: Throwable) => InternalServerError()
-      case _ => BadRequest()
+          case Success(res) =>
+            counter.labelValues(OK).inc()
+            Ok(res.asJson)
+          case Failure(e: TickerNotFoundException) =>
+            counter.labelValues(BAD_REQUEST).inc()
+            BadRequest()
+          case Failure(e: Throwable) =>
+            counter.labelValues(INTERNAL_ERROR).inc()
+            InternalServerError()
+      case _ =>
+        counter.labelValues(BAD_REQUEST).inc()
+        BadRequest()
 
   private def getBasicTickerValue[F[_]: Concurrent](dsl: Http4sDsl[F], controller: TickerController[F], body: BasicTickerBody): F[Response[F]] =
     getBasicTickerValue(dsl, controller, body.market, body.ticker, body.assetType)

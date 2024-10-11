@@ -46,6 +46,11 @@ lazy val root = (project in file("."))
       "io.circe" %% "circe-generic" % "0.14.10",
       "io.circe" %% "circe-literal" % "0.14.10"
     ),
+    libraryDependencies ++= Seq(
+      "io.prometheus" % "prometheus-metrics-core" % "1.3.0",
+      "io.prometheus" % "prometheus-metrics-instrumentation-jvm" % "1.3.0",
+      "io.prometheus" % "prometheus-metrics-exporter-httpserver" % "1.3.1",
+    ),
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", x, xs @ _*) if x.toLowerCase == "services" => MergeStrategy.filterDistinctLines
       case PathList("META-INF", xs @ _*) => MergeStrategy.discard
