@@ -2,7 +2,7 @@ FROM amazoncorretto:21-alpine-jdk
 
 WORKDIR /app
 
-COPY target/scala-3.3.3/application.jar /app
+COPY target/scala-3.3.4/application.jar /app
 
 EXPOSE 8080
 
