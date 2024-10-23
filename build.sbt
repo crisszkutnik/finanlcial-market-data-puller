@@ -1,7 +1,7 @@
 import scala.language.postfixOps
 import scala.sys.process.*
 
-val Http4sVersion = "0.23.28"
+val Http4sVersion = "0.23.29"
 val CirceVersion = "0.14.9"
 val MunitVersion = "1.0.2"
 val LogbackVersion = "1.5.11"
