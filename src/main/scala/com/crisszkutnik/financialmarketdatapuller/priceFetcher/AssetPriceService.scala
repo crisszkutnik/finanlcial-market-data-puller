@@ -1,10 +1,14 @@
 package com.crisszkutnik.financialmarketdatapuller.priceFetcher
 
 import com.crisszkutnik.financialmarketdatapuller.priceFetcher.exceptions.TickerNotFoundException
-import com.crisszkutnik.financialmarketdatapuller.priceFetcher.strategies.{FciStrategy, IolStrategy, PriceFetcher, YahooFinanceStrategy}
+import com.crisszkutnik.financialmarketdatapuller.priceFetcher.strategies.{FciStrategy, IolStrategy, PriceFetcher, SqliteStrategy, YahooFinanceStrategy}
 import com.typesafe.scalalogging.Logger
 
 import scala.util.{Failure, Success, Try}
+
+/*
+  This is a mess
+*/
 
 case class FetcherEvaluationStatus(
   tickerInfo: Option[TickerPriceInfo] = None,
@@ -14,6 +18,7 @@ case class FetcherEvaluationStatus(
 
 class AssetPriceService(
   private val fetchers: List[PriceFetcher] = List(
+    SqliteStrategy(),
     YahooFinanceStrategy(),
     IolStrategy(),
     FciStrategy()
@@ -36,9 +41,12 @@ class AssetPriceService(
     }
 
     val fetcherStatus = validFetchers.foldLeft(FetcherEvaluationStatus())(foldFn)
-
+    
     fetcherStatus match
       case FetcherEvaluationStatus(Some(info), Some(source), _) =>
+        if source != Source.SQLITE then
+          val _ = SqliteStrategy.insertInfo(market, ticker, Some(assetType), info)
+        
         Success(
           PriceResponse(
             info.value,

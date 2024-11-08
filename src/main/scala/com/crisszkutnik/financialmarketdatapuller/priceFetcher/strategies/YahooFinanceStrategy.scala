@@ -17,7 +17,12 @@ class YahooFinanceStrategy(
   def canHandle(market: Market, ticker: String, assetType: AssetType): Boolean =
     assetType == AssetType.STOCK
 
+  def canHandle(market: Market, ticker: String): Boolean = true
+
   def getTickerPriceInfo(market: Market, ticker: String, assetType: AssetType): Try[TickerPriceInfo] =
+    getTickerPriceInfo(market, ticker)
+
+  def getTickerPriceInfo(market: Market, ticker: String): Try[TickerPriceInfo] =
     Try {
       val actualTicker = transformTicker(market, ticker)
       val (price, currency) = retrieveData(actualTicker)

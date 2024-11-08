@@ -6,6 +6,7 @@ import io.prometheus.metrics.exporter.httpserver.HTTPServer
 import io.prometheus.metrics.instrumentation.jvm.JvmMetrics
 
 object Main extends IOApp.Simple:
+  Config.init()
   JvmMetrics.builder().register()
   HTTPServer.builder().port(9400).buildAndStart()
 

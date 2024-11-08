@@ -5,7 +5,8 @@ import io.circe.{Encoder, Json}
 enum Source:
   case YAHOOFINANCE,
   IOL,
-  CAFCI
+  CAFCI,
+  SQLITE
 
 object Source:
   given Encoder[Source] = new Encoder[Source]:

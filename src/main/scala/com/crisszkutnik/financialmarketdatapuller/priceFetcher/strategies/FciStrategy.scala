@@ -1,6 +1,7 @@
 package com.crisszkutnik.financialmarketdatapuller.priceFetcher.strategies
 
 import FciStrategy.BASE_PATH
+import com.crisszkutnik.financialmarketdatapuller.priceFetcher.exceptions.TickerNotFoundException
 import com.crisszkutnik.financialmarketdatapuller.priceFetcher.{AssetType, Currency, Market, Source, TickerPriceInfo}
 import com.typesafe.scalalogging.Logger
 import org.apache.commons.io.FileUtils
@@ -25,6 +26,11 @@ class FciStrategy(
   def canHandle(market: Market, ticker: String, assetType: AssetType): Boolean =
     (market, ticker, assetType) match
       case (Market.BCBA, _, AssetType.MUTUAL_FUND) => true
+      case _ => false
+
+  def canHandle(market: Market, ticker: String): Boolean =
+    market match
+      case Market.BCBA => true
       case _ => false
 
   private def getFilePath: Path =
@@ -85,7 +91,7 @@ class FciStrategy(
         downloadFile(filePath)
     }
 
-  private def readFromSpreadsheet(fciName: String, file: File): TickerPriceInfo =
+  private def readFromSpreadsheet(fciName: String, file: File): Option[TickerPriceInfo] =
     val wb =  WorkbookFactory.create(file)
     val sheet = wb.getSheetAt(0)
     val it = sheet.iterator().asScala
@@ -95,25 +101,39 @@ class FciStrategy(
       cell.getStringCellValue.strip() == fciName
     })
 
-    val price = row.get.getCell(5).getNumericCellValue
-    val currency = row.get.getCell(1).getStringCellValue
+    if row.isEmpty then
+      None
+    else
+      val price = row.get.getCell(5).getNumericCellValue
+      val currency = row.get.getCell(1).getStringCellValue
 
-    TickerPriceInfo(
-      price,
-      1000,
-      Currency.valueOf(currency)
-    )
+      Some(
+        TickerPriceInfo(
+          price,
+          1000,
+          Currency.valueOf(currency)
+        )
+      )
+
 
   private def readValue(fciName: String): Try[TickerPriceInfo] =
     retrieveFile() match
       case Success(f) =>
-        Success(readFromSpreadsheet(fciName, f))
+        val info = readFromSpreadsheet(fciName, f)
+
+        if info.isEmpty then
+          Failure(TickerNotFoundException(source, fciName))
+        else
+          Success(info.get)
       case Failure(e: Throwable) =>
         logger.error("Failed to retrieve file")
         logger.error(e.toString)
         Failure(e)
 
   def getTickerPriceInfo(market: Market, ticker: String, assetType: AssetType): Try[TickerPriceInfo] =
+    getTickerPriceInfo(market, ticker)
+
+  def getTickerPriceInfo(market: Market, ticker: String): Try[TickerPriceInfo] =
     Try {
       createDirectory()
       readValue(ticker).get

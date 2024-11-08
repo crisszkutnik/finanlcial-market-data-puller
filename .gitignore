@@ -5,3 +5,6 @@ target
 project/target
 project/project/target
 .DS_Store
+fci_files
+
+data.db

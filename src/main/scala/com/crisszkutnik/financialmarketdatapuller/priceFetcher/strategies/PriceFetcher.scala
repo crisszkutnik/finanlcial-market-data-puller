@@ -7,4 +7,6 @@ import scala.util.Try
 trait PriceFetcher:
   val source: Source;
   def canHandle(market: Market, ticker: String, assetType: AssetType): Boolean
+  def canHandle(market: Market, ticker: String): Boolean
   def getTickerPriceInfo(market: Market, ticker: String, assetType: AssetType): Try[TickerPriceInfo]
+  def getTickerPriceInfo(market: Market, ticker: String): Try[TickerPriceInfo]

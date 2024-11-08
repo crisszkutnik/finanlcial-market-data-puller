@@ -18,10 +18,15 @@ class IolStrategy extends PriceFetcher:
       case AssetType.STOCK | AssetType.BOND => true
       case _ => false
 
+  def canHandle(market: Market, ticker: String): Boolean = true
+
+  // We will assume it is a stock
+  def getTickerPriceInfo(market: Market, ticker: String): Try[TickerPriceInfo] =
+    getTickerPriceInfo(market, ticker, AssetType.STOCK)
+
   def getTickerPriceInfo(market: Market, ticker: String, assetType: AssetType): Try[TickerPriceInfo] =
     Try {
       val doc = getDocument(transformMarket(market), ticker)
-
 
       if foundTicker(doc) then
         TickerPriceInfo(
@@ -35,7 +40,6 @@ class IolStrategy extends PriceFetcher:
 
   private def foundTicker(doc: Document): Boolean =
     Option(doc.selectFirst("#error")).isEmpty
-
 
   private def getDocument(market: String, ticker: String): Document =
     try {
